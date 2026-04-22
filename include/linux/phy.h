@@ -2484,4 +2484,10 @@ module_exit(phy_module_exit)
 #define module_phy_driver(__phy_drivers)				\
 	phy_module_driver(__phy_drivers, ARRAY_SIZE(__phy_drivers))
 
+#if IS_ENABLED(CONFIG_PSE_CONTROLLER)
+void phy_retry_pse_attach(void);
+#else
+static inline void phy_retry_pse_attach(void) { }
+#endif
+
 #endif /* __PHY_H */

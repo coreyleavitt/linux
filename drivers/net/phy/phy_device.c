@@ -1438,6 +1438,51 @@ void phy_attached_print(struct phy_device *phydev, const char *fmt, ...)
 }
 EXPORT_SYMBOL(phy_attached_print);
 
+#if IS_ENABLED(CONFIG_PSE_CONTROLLER)
+#include <linux/pse-pd/pse.h>
+
+static int phy_retry_pse_attach_cb(struct device *dev, void *data)
+{
+	struct phy_device *phydev;
+	struct pse_control *psec;
+	struct device_node *np;
+
+	/* Only phy_devices (not generic mdio devices) have phy->psec. */
+	if (dev->type != &mdio_bus_phy_type)
+		return 0;
+
+	phydev = to_phy_device(dev);
+	/* If psec is already set, earlier lookup succeeded. Don't clobber. */
+	if (phydev->psec)
+		return 0;
+
+	np = phydev->mdio.dev.of_node;
+	if (!np)
+		return 0;
+
+	psec = of_pse_control_get(np, phydev);
+	if (IS_ERR(psec))
+		return 0;
+
+	phydev->psec = psec;
+	return 0;
+}
+
+/**
+ * phy_retry_pse_attach - retry PSE lookup for phy_devices that earlier
+ *                        got -EPROBE_DEFER and were left with a NULL psec.
+ *
+ * Called by the PSE core after a new PSE controller has been registered.
+ * Any phy_device whose `pses = <&...>` phandle now resolves to the newly-
+ * registered controller will have its psec populated.
+ */
+void phy_retry_pse_attach(void)
+{
+	bus_for_each_dev(&mdio_bus_type, NULL, NULL, phy_retry_pse_attach_cb);
+}
+EXPORT_SYMBOL_GPL(phy_retry_pse_attach);
+#endif /* CONFIG_PSE_CONTROLLER */
+
 static void phy_sysfs_create_links(struct phy_device *phydev)
 {
 	struct net_device *dev = phydev->attached_dev;

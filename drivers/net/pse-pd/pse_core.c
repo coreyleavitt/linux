@@ -1104,6 +1104,12 @@ int pse_controller_register(struct pse_controller_dev *pcdev)
 	list_add(&pcdev->list, &pse_controller_list);
 	mutex_unlock(&pse_list_mutex);
 
+	/* Any phy_devices whose DT pses phandle previously failed to resolve
+	 * (because this controller had not registered yet) can now be linked
+	 * up. Walk them and populate phydev->psec where applicable.
+	 */
+	phy_retry_pse_attach();
+
 	return 0;
 }
 EXPORT_SYMBOL_GPL(pse_controller_register);
